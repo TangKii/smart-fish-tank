@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Fish Tank Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            width: 100%;
+            padding: 16px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #1a1a1a;
+            text-align: center;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1rem;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease;
+            min-height: 120px;
+        }
+
+        .card:active {
+            transform: scale(0.98);
+        }
+
+        .label {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .chart-controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            height: 240px;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 100% !important;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+            color: #64748b;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-button:hover {
+            background-color: #f1f5f9;
+        }
+
+        .date-group {
+            margin-bottom: 20px;
+        }
+
+        .date-label {
+            display: block;
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .date-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            color: #0f172a;
+            background: #f8fafc;
+            transition: border-color 0.2s ease;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .button.secondary {
+            background-color: #e2e8f0;
+            color: #64748b;
+        }
+
+        .alert {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .control-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title svg {
+            width: 24px;
+            height: 24px;
+            color: #3b82f6;
+        }
+
+        .button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+            min-height: 56px;
+            width: 100%;
+        }
+
+        .button svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .button.active {
+            background-color: #2563eb;
+        }
+
+        .color-picker-container {
+            margin-top: 12px;
+        }
+
+        #colorPicker {
+            width: 100%;
+            height: 56px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .circulation-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 100%;
+        }
+
+        @media screen and (max-width: 640px) {
+            .control-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media screen and (min-width: 1440px) {
+            .control-panel {
+                padding: 24px;
+            }
+
+            .circulation-buttons {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .button {
+                font-size: 1.125rem;
+                min-height: 64px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                max-width: 1200px;
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            .dashboard {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 20px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0f172a;
+                color: #e2e8f0;
+            }
+
+            h1 {
+                color: #f1f5f9;
+            }
+
+            .card, .chart-container, .modal-content {
+                background: #1e293b;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            }
+
+            .label {
+                color: #94a3b8;
+            }
+
+            .value {
+                color: #f1f5f9;
+            }
+
+            .modal-title {
+                color: #f1f5f9;
+            }
+
+            .close-button {
+                color: #94a3b8;
+            }
+
+            .close-button:hover {
+                background-color: #334155;
+            }
+
+            .date-input {
+                background: #334155;
+                border-color: #475569;
+                color: #f1f5f9;
+            }
+
+            .date-input:focus {
+                background: #1e293b;
+                border-color: #3b82f6;
+            }
+
+            .button.secondary {
+                background-color: #334155;
+                color: #94a3b8;
+            }
+
+            .alert {
+                background: #7f1d1d;
+                color: #fecaca;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <!-- RGB照明和打氧控制 -->
+            <div class="control-row">
+                <!-- RGB照明控制 -->
+                <div class="control-section">
+                    <h3 class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L12 6M12 18L12 22M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07M2 12L6 12M18 12L22 12M4.93 19.07L7.76 16.24M16.24 7.76L19.07 4.93" stroke-linecap="round"/>
+                        </svg>
+                        RGB照明控制
+                    </h3>
+                    <div class="button-group">
+                        <button id="lightSwitch" class="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                            开/关
+                        </button>
+                    </div>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorPicker" value="#ffffff">
+                    </div>
+                </div>
+
+                <!-- 打氧控制 -->
+                <div class="control-section">
+                    <h3 class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v18M3 12h18M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" stroke-linecap="round"/>
+                        </svg>
+                        打氧控制
+                    </h3>
+                    <div class="button-group">
+                        <button id="aerationSwitch" class="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3M12 21V3" stroke-linecap="round"/>
+                            </svg>
+                            开/关
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 水循环控制 -->
+            <div class="control-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3v18M3 12h18M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" stroke-linecap="round"/>
+                        <path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke-linecap="round"/>
+                    </svg>
+                    水循环控制
+                </h3>
+                <div class="circulation-buttons">
+                    <button class="button" onclick="setCirculation(0)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/>
+                        </svg>
+                        关闭
+                    </button>
+                    <button class="button" onclick="setCirculation(1)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v18M3 12h18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke-linecap="round"/>
+                        </svg>
+                        低速
+                    </button>
+                    <button class="button" onclick="setCirculation(2)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v18M3 12h18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke-linecap="round"/>
+                            <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" stroke-linecap="round"/>
+                        </svg>
+                        中速
+                    </button>
+                    <button class="button" onclick="setCirculation(3)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v18M3 12h18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke-linecap="round"/>
+                            <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="6" stroke-linecap="round"/>
+                        </svg>
+                        高速
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 原有的图表内容 -->
+        <div class="dashboard">
+            <div class="card">
+                <div class="label">Temperature</div>
+                <div class="value">{{ temperature }}°C</div>
+            </div>
+            <div class="card">
+                <div class="label">pH Level</div>
+                <div class="value">{{ ph_level }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Water Level</div>
+                <div class="value">{{ water_level }}%</div>
+            </div>
+        </div>
+
+        <div class="chart-controls">
+            <button class="button" onclick="openDatePicker()">
+                <svg style="width:20px;height:20px" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M19,4H18V2H16V4H8V2H6V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M19,8H5V6H19V8Z" />
+                </svg>
+                History
+            </button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="tankChart"></canvas>
+        </div>
+
+        {% if alerts %}
+        <div class="alerts">
+            {% for alert in alerts %}
+            <div class="alert">
+                <svg style="width:20px;height:20px" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" />
+                </svg>
+                {{ alert }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="datePickerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Select Date Range</div>
+                <button class="close-button" onclick="closeDatePicker()">&times;</button>
+            </div>
+            <div class="date-group">
+                <label class="date-label">Start Date</label>
+                <input type="date" id="startDate" class="date-input">
+            </div>
+            <div class="date-group">
+                <label class="date-label">End Date</label>
+                <input type="date" id="endDate" class="date-input">
+            </div>
+            <div class="button-group">
+                <button class="button secondary" onclick="closeDatePicker()">Cancel</button>
+                <button class="button" onclick="updateChartWithDates()">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        const ctx = document.getElementById('tankChart').getContext('2d');
+        ctx.canvas.style.transition = 'all 0.3s ease';
+
+        function createChart() {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        data: [],
+                        yAxisID: 'y-temperature'
+                    }, {
+                        label: 'pH Level',
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        data: [],
+                        yAxisID: 'y-ph'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 750,
+                        easing: 'easeInOutQuart'
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 0
+                            }
+                        },
+                        'y-temperature': {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            },
+                            grid: {
+                                color: 'rgba(59, 130, 246, 0.1)'
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return Math.round(value) + '°C';
+                                }
+                            }
+                        },
+                        'y-ph': {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'pH Level'
+                            },
+                            grid: {
+                                color: 'rgba(16, 185, 129, 0.1)',
+                                drawOnChartArea: false
+                            },
+                            min: 0,
+                            max: 14,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            fetch(`/data?start=${startDate}&end=${endDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    const timestamps = data.timestamps;
+                    const temperatures = data.temperatures;
+                    const phLevels = data.ph_levels;
+
+                    const tempData = temperatures.map((temp, i) => ({
+                        x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                        y: temp
+                    }));
+
+                    const phData = phLevels.map((ph, i) => ({
+                        x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                        y: ph
+                    }));
+
+                    if (chart) {
+                        chart.data.datasets[0].data = tempData;
+                        chart.data.datasets[1].data = phData;
+                        chart.update('none');
+                    } else {
+                        chart = createChart();
+                        chart.data.datasets[0].data = tempData;
+                        chart.data.datasets[1].data = phData;
+                        chart.update();
+                    }
+                });
+        }
+
+        function openDatePicker() {
+            const modal = document.getElementById('datePickerModal');
+            modal.style.display = 'flex';
+            
+            // 设置默认日期范围（今天和昨天）
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            document.getElementById('startDate').valueAsDate = yesterday;
+            document.getElementById('endDate').valueAsDate = today;
+        }
+
+        function closeDatePicker() {
+            document.getElementById('datePickerModal').style.display = 'none';
+        }
+
+        function updateChartWithDates() {
+            updateChart();
+            closeDatePicker();
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('datePickerModal');
+            if (event.target == modal) {
+                closeDatePicker();
+            }
+        }
+
+        // 初始化图表
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                const timestamps = data.timestamps;
+                const temperatures = data.temperatures;
+                const phLevels = data.ph_levels;
+
+                const tempData = temperatures.map((temp, i) => ({
+                    x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                    y: temp
+                }));
+
+                const phData = phLevels.map((ph, i) => ({
+                    x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                    y: ph
+                }));
+
+                chart = createChart();
+                chart.data.datasets[0].data = tempData;
+                chart.data.datasets[1].data = phData;
+                chart.update();
+            });
+
+        // 每5秒更新一次数据
+        setInterval(() => {
+            if (chart && document.getElementById('datePickerModal').style.display !== 'flex') {
+                fetch('/data')
+                    .then(response => response.json())
+                    .then(data => {
+                        const timestamps = data.timestamps;
+                        const temperatures = data.temperatures;
+                        const phLevels = data.ph_levels;
+
+                        const tempData = temperatures.map((temp, i) => ({
+                            x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                            y: temp
+                        }));
+
+                        const phData = phLevels.map((ph, i) => ({
+                            x: luxon.DateTime.fromFormat(timestamps[i], 'yyyy-MM-dd HH:mm'),
+                            y: ph
+                        }));
+
+                        chart.data.datasets[0].data = tempData;
+                        chart.data.datasets[1].data = phData;
+                        chart.update('none');
+                    });
+            }
+        }, 5000);
+
+        // 深色模式支持
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
+        }
+
+        // 控制面板功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // RGB照明控制
+            const lightSwitch = document.getElementById('lightSwitch');
+            const colorPicker = document.getElementById('colorPicker');
+
+            function updateLighting() {
+                const color = colorPicker.value;
+                const r = parseInt(color.substr(1,2), 16);
+                const g = parseInt(color.substr(3,2), 16);
+                const b = parseInt(color.substr(5,2), 16);
+
+                fetch('/control/lighting', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state: lightSwitch.textContent === '开',
+                        r: r,
+                        g: g,
+                        b: b
+                    })
+                });
+            }
+
+            [lightSwitch].forEach(el => {
+                el.addEventListener('click', function() {
+                    if (el.textContent === '开') {
+                        el.textContent = '关';
+                    } else {
+                        el.textContent = '开';
+                    }
+                    updateLighting();
+                });
+            });
+
+            // 打氧控制
+            const aerationSwitch = document.getElementById('aerationSwitch');
+            aerationSwitch.addEventListener('click', function() {
+                if (aerationSwitch.textContent === '开') {
+                    aerationSwitch.textContent = '关';
+                } else {
+                    aerationSwitch.textContent = '开';
+                }
+                fetch('/control/aeration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state: aerationSwitch.textContent === '开'
+                    })
+                });
+            });
+
+            // 水循环控制
+            function setCirculation(level) {
+                fetch('/control/circulation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        level: level
+                    })
+                });
+            }
+
+            // 定期更新状态
+            function updateStatus() {
+                fetch('/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        // 更新照明状态
+                        if (data.lighting.state) {
+                            lightSwitch.textContent = '开';
+                        } else {
+                            lightSwitch.textContent = '关';
+                        }
+                        const color = '#' + 
+                            data.lighting.rgb.r.toString(16).padStart(2, '0') +
+                            data.lighting.rgb.g.toString(16).padStart(2, '0') +
+                            data.lighting.rgb.b.toString(16).padStart(2, '0');
+                        colorPicker.value = color;
+                        
+                        // 更新打氧状态
+                        if (data.aeration) {
+                            aerationSwitch.textContent = '开';
+                        } else {
+                            aerationSwitch.textContent = '关';
+                        }
+                    });
+            }
+
+            // 每5秒更新一次状态
+            setInterval(updateStatus, 5000);
+            updateStatus(); // 初始化状态
+        });
+    </script>
+</body>
+</html>
