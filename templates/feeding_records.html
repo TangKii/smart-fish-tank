@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>喂食记录</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <a href="/" class="back-btn">
+                <span class="icon">←</span>
+            </a>
+            <h1>喂食记录</h1>
+        </header>
+
+        <div class="content">
+            {% if records %}
+            <div class="records-list">
+                {% for record in records %}
+                <div class="record-item">
+                    <div class="record-time">
+                        <div class="time">{{ record.time }}</div>
+                    </div>
+                    <div class="record-info">
+                        <div class="info-row">
+                            <span class="label">食物类型：</span>
+                            <span class="value">{{ record.food_type }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">投喂量：</span>
+                            <span class="value">{{ record.amount }}</span>
+                        </div>
+                        <div class="status-badge {% if record.status == '成功' %}success{% else %}failed{% endif %}">
+                            {{ record.status }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <p>暂无喂食记录</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

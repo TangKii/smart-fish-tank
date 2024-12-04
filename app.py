@@ -1,253 +1,138 @@
 from flask import Flask, render_template, jsonify, request
+import sqlite3
+from datetime import datetime
+import os
 import random
-import math
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import json
 
 app = Flask(__name__)
 
-# 数据库配置
-engine = create_engine('sqlite:///fish_tank.db')
-Base = declarative_base()
-Session = sessionmaker(bind=engine)
+# 数据库初始化
+def init_db():
+    conn = sqlite3.connect('fish_tank.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS feeding_records
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  timestamp TEXT NOT NULL)''')
+    conn.commit()
+    conn.close()
 
-# 数据模型
-class SensorData(Base):
-    __tablename__ = 'sensor_data'
-    
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, nullable=False)
-    temperature = Column(Float, nullable=False)
-    ph_level = Column(Float, nullable=False)
-    water_level = Column(Float, nullable=False)
-
-    def to_dict(self):
-        return {
-            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M'),
-            'temperature': round(self.temperature, 2),
-            'ph_level': round(self.ph_level, 2),
-            'water_level': self.water_level
-        }
-
-# 创建数据库表
-Base.metadata.create_all(engine)
-
-# 模拟传感器数据类
-class FishTankSensor:
-    def __init__(self):
-        self.temperature = 25.0
-        self.ph_level = 7.0
-        self.water_level = 100
-        self.fish_count = 5
-        self.last_update = datetime.now()
-        self.daily_temp_cycle = 0
-        self._initialize_historical_data()
-        self.lighting = {
-            'state': False,
-            'rgb': {'r': 255, 'g': 255, 'b': 255}
-        }
-        self.aeration = False
-        self.water_circulation = 0  # 0: 关闭, 1: 低速, 2: 中速, 3: 高速
-
-    def _initialize_historical_data(self):
-        session = Session()
-        if session.query(SensorData).count() == 0:
-            # 生成过去7天的历史数据
-            current_time = datetime.now()
-            for days in range(7, -1, -1):
-                for hour in range(24):
-                    for i in range(0, 60, 5):  # 每5分钟一条数据
-                        past_time = current_time - timedelta(days=days, hours=hour, minutes=i)
-                        self.last_update = past_time
-                        data = SensorData(
-                            timestamp=past_time,
-                            temperature=self.get_temperature(),
-                            ph_level=self.get_ph_level(),
-                            water_level=self.water_level
-                        )
-                        session.add(data)
-            session.commit()
-        session.close()
-
-    def get_temperature(self):
-        current_time = datetime.now()
-        time_diff = (current_time - self.last_update).total_seconds()
-        
-        self.daily_temp_cycle = (self.daily_temp_cycle + time_diff / 86400) % 1
-        day_night_variation = math.sin(2 * math.pi * self.daily_temp_cycle) * 2
-        random_variation = random.uniform(-0.3, 0.3)
-        drift = math.sin(time_diff / 3600) * 0.5
-        
-        self.temperature = 25.0 + day_night_variation + random_variation + drift
-        self.last_update = current_time
-        
-        return round(self.temperature, 0)
-
-    def get_ph_level(self):
-        self.ph_level += random.uniform(-0.2, 0.2)
-        self.ph_level = max(6.0, min(8.0, self.ph_level))
-        return round(self.ph_level, 2)
-
-    def log_data(self):
-        current_time = datetime.now()
-        current_data = {
-            'timestamp': current_time.strftime('%Y-%m-%d %H:%M'),
-            'temperature': self.get_temperature(),
-            'ph_level': self.get_ph_level(),
-            'water_level': self.water_level
-        }
-        
-        # 保存到数据库
-        session = Session()
-        data = SensorData(
-            timestamp=current_time,
-            temperature=current_data['temperature'],
-            ph_level=current_data['ph_level'],
-            water_level=current_data['water_level']
-        )
-        session.add(data)
-        session.commit()
-        session.close()
-        
-        return current_data
-
-    def generate_health_alert(self):
-        alerts = []
-        if self.temperature < 22 or self.temperature > 28:
-            alerts.append("Temperature outside optimal range!")
-        if self.ph_level < 6.5 or self.ph_level > 7.5:
-            alerts.append("pH level is unstable!")
-        if self.water_level < 50:
-            alerts.append("Low water level detected!")
-        return alerts
-
-    def get_historical_data(self, start_date=None, end_date=None):
-        session = Session()
-        query = session.query(SensorData)
-        
-        if start_date:
-            query = query.filter(SensorData.timestamp >= start_date)
-        if end_date:
-            query = query.filter(SensorData.timestamp <= end_date)
-            
-        # 如果没有指定日期，返回最近1小时的数据
-        if not start_date and not end_date:
-            start_date = datetime.now() - timedelta(hours=1)
-            query = query.filter(SensorData.timestamp >= start_date)
-        
-        data = query.order_by(SensorData.timestamp).all()
-        session.close()
-        
-        return [record.to_dict() for record in data]
-
-    def set_lighting(self, state, r=None, g=None, b=None):
-        """控制RGB照明"""
-        self.lighting['state'] = state
-        if r is not None:
-            self.lighting['rgb']['r'] = max(0, min(255, int(r)))
-        if g is not None:
-            self.lighting['rgb']['g'] = max(0, min(255, int(g)))
-        if b is not None:
-            self.lighting['rgb']['b'] = max(0, min(255, int(b)))
-        return self.lighting
-
-    def set_aeration(self, state):
-        """控制打氧"""
-        self.aeration = bool(state)
-        return self.aeration
-
-    def set_water_circulation(self, level):
-        """控制水循环"""
-        self.water_circulation = max(0, min(3, int(level)))
-        return self.water_circulation
-
-    def get_status(self):
-        """获取所有状态"""
-        return {
-            'lighting': self.lighting,
-            'aeration': self.aeration,
-            'water_circulation': self.water_circulation
-        }
-
-# 初始化传感器
-fish_tank = FishTankSensor()
-
+# 主页
 @app.route('/')
 def index():
-    current_data = fish_tank.log_data()
-    alerts = fish_tank.generate_health_alert()
-    historical_data = fish_tank.get_historical_data()
+    # 模拟温度数据
+    temperature = 20.3
+    max_temp = 21.5
+    min_temp = 19.0
     
     return render_template('index.html', 
-                         temperature=current_data['temperature'],
-                         ph_level=current_data['ph_level'],
-                         water_level=current_data['water_level'],
-                         alerts=alerts,
-                         historical_data=historical_data)
+                         temperature=temperature,
+                         max_temp=max_temp,
+                         min_temp=min_temp)
 
-@app.route('/data')
-def get_tank_data():
-    current_data = fish_tank.log_data()
-    start_date = request.args.get('start')
-    end_date = request.args.get('end')
+# 灯效模式页面
+@app.route('/lighting-modes')
+def lighting_modes():
+    return render_template('lighting_modes.html')
+
+# 全局变量存储喂食记录
+feeding_records = [
+    {
+        "time": "2024-01-20 08:30",
+        "food_type": "鱼粮",
+        "amount": "5g",
+        "status": "成功"
+    },
+    {
+        "time": "2024-01-19 19:00",
+        "food_type": "鱼粮",
+        "amount": "5g",
+        "status": "成功"
+    },
+    {
+        "time": "2024-01-19 08:30",
+        "food_type": "鱼粮",
+        "amount": "5g",
+        "status": "成功"
+    },
+    {
+        "time": "2024-01-18 19:00",
+        "food_type": "鱼粮",
+        "amount": "5g",
+        "status": "失败"
+    }
+]
+
+# 喂食记录页面
+@app.route('/feeding-records')
+def feeding_records_page():
+    return render_template('feeding_records.html', records=feeding_records)
+
+# 喂食记录页面（数据库版）
+@app.route('/feeding-records-db')
+def feeding_records_db():
+    conn = sqlite3.connect('fish_tank.db')
+    c = conn.cursor()
+    c.execute('SELECT timestamp FROM feeding_records ORDER BY timestamp DESC')
+    records = c.fetchall()
+    conn.close()
+    return render_template('feeding_records.html', records=records)
+
+# 添加喂食记录
+@app.route('/add-feeding-record', methods=['POST'])
+def add_feeding_record():
+    conn = sqlite3.connect('fish_tank.db')
+    c = conn.cursor()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    c.execute('INSERT INTO feeding_records (timestamp) VALUES (?)', (now,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'timestamp': now})
+
+# 喂食功能
+@app.route('/feed', methods=['POST'])
+def feed():
+    # 模拟喂食操作
+    success = random.random() > 0.1  # 90% 成功率
     
-    if start_date:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
-    if end_date:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    # 创建新的喂食记录
+    new_record = {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "food_type": "鱼粮",
+        "amount": "5g",
+        "status": "成功" if success else "失败"
+    }
     
-    historical_data = fish_tank.get_historical_data(start_date, end_date)
+    # 添加到记录列表的开头
+    feeding_records.insert(0, new_record)
     
-    timestamps = []
-    temperatures = []
-    ph_levels = []
-    
-    for data in historical_data:
-        timestamps.append(data['timestamp'])
-        temperatures.append(data['temperature'])
-        ph_levels.append(data['ph_level'])
-    
+    # 返回操作结果
     return jsonify({
-        'timestamps': timestamps,
-        'temperatures': temperatures,
-        'ph_levels': ph_levels
+        "success": success,
+        "message": "喂食成功" if success else "喂食失败",
+        "record": new_record
     })
 
-@app.route('/alerts')
-def get_alerts():
-    alerts = fish_tank.generate_health_alert()
-    return jsonify(alerts)
-
-@app.route('/control/lighting', methods=['POST'])
-def control_lighting():
-    data = request.get_json()
-    state = data.get('state', False)
-    r = data.get('r')
-    g = data.get('g')
-    b = data.get('b')
-    result = fish_tank.set_lighting(state, r, g, b)
-    return jsonify(result)
-
-@app.route('/control/aeration', methods=['POST'])
-def control_aeration():
-    data = request.get_json()
-    state = data.get('state', False)
-    result = fish_tank.set_aeration(state)
-    return jsonify({'state': result})
-
-@app.route('/control/circulation', methods=['POST'])
-def control_circulation():
-    data = request.get_json()
-    level = data.get('level', 0)
-    result = fish_tank.set_water_circulation(level)
-    return jsonify({'level': result})
-
-@app.route('/status')
-def get_status():
-    return jsonify(fish_tank.get_status())
+# 水流控制路由
+@app.route('/set_water_flow', methods=['POST'])
+def set_water_flow():
+    try:
+        data = request.get_json()
+        level = data.get('level')
+        
+        # 这里可以添加实际的水流控制逻辑
+        # 目前只是模拟返回成功
+        return jsonify({
+            'success': True,
+            'message': f'水流已设置为{level}档',
+            'level': level
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': '设置水流失败',
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True)

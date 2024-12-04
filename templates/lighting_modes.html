@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灯效模式</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <a href="/" class="back-btn">
+                <span class="icon">←</span>
+            </a>
+            <h1>灯效模式</h1>
+        </header>
+
+        <div class="content">
+            <div class="mode-section">
+                <h2>推荐灯效</h2>
+                <div class="list-item">
+                    <div class="mode-color" style="background-color: #8B4513"></div>
+                    <div class="item-content">
+                        <div class="item-title">南美风</div>
+                        <div class="item-subtitle">温柔如水，渗透南美风情</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+                <div class="list-item">
+                    <div class="mode-color" style="background-color: #008080"></div>
+                    <div class="item-content">
+                        <div class="item-title">溪流风</div>
+                        <div class="item-subtitle">波光荡漾，随溪流轻舞</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+                <div class="list-item">
+                    <div class="mode-color" style="background-color: #FFE4B5"></div>
+                    <div class="item-content">
+                        <div class="item-title">夏日</div>
+                        <div class="item-subtitle">明媚阳光，洒满缸内生机</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+                <div class="list-item">
+                    <div class="mode-color" style="background-color: #E0E0E0"></div>
+                    <div class="item-content">
+                        <div class="item-title">月夜</div>
+                        <div class="item-subtitle">银光映照，夜色静谧迷人</div>
+                    </div>
+                    <div class="mode-select active"></div>
+                </div>
+            </div>
+
+            <div class="mode-section">
+                <h2>其他灯效</h2>
+                <div class="list-item">
+                    <div class="mode-color" style="background-color: #0000CD"></div>
+                    <div class="item-content">
+                        <div class="item-title">深海</div>
+                        <div class="item-subtitle">幽蓝神秘，深海色彩交织</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+                <div class="list-item">
+                    <div class="mode-color" style="background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)"></div>
+                    <div class="item-content">
+                        <div class="item-title">地球自转</div>
+                        <div class="item-subtitle">随时而变，光影在转动</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+                <div class="list-item">
+                    <div class="mode-color" style="background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000)"></div>
+                    <div class="item-content">
+                        <div class="item-title">彩虹</div>
+                        <div class="item-subtitle">缤纷多彩，绚丽夺目</div>
+                    </div>
+                    <div class="mode-select"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

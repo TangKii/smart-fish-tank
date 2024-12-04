@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>喂食记录 - 智能鱼缸</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .page-header {
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .back-btn {
+            border: none;
+            background: none;
+            padding: 0.5rem;
+            font-size: 1.2rem;
+        }
+        .content {
+            padding: 1rem;
+        }
+        .feeding-section {
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 12px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        .icon {
+            font-size: 1.2rem;
+            margin-right: 0.5rem;
+        }
+        .feed-btn {
+            width: 100%;
+            height: 40px;
+            border-radius: 12px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .list-group {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .record-item {
+            padding: 1rem;
+            border-bottom: 1px solid #ccc;
+        }
+        .record-left {
+            display: flex;
+            align-items: center;
+        }
+        .record-info {
+            margin-left: 0.5rem;
+        }
+        .record-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <a href="/" class="back-btn">
+                <span class="icon">←</span>
+            </a>
+            <h1>喂食记录</h1>
+        </header>
+
+        <main class="content">
+            <div class="feeding-section">
+                <div class="section-header">
+                    <div class="header-left">
+                        <span class="icon">🐟</span>
+                        <span>喂食控制</span>
+                    </div>
+                </div>
+                <div class="feed-controls">
+                    <button id="feedButton" class="feed-btn">喂食</button>
+                    <span class="feed-status"></span>
+                    <span class="feed-amount">5g</span>
+                </div>
+            </div>
+
+            <div class="feeding-section">
+                <div class="section-header">
+                    <div class="header-left">
+                        <span class="icon">📝</span>
+                        <span>喂食记录</span>
+                    </div>
+                </div>
+                <div id="feedingRecords" class="list-group">
+                    <!-- 喂食记录将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const feedButton = document.getElementById('feedButton');
+            const feedAmount = document.querySelector('.feed-amount');
+            const feedStatus = document.querySelector('.feed-status');
+            
+            feedButton.addEventListener('click', async function() {
+                try {
+                    // 禁用按钮防止重复点击
+                    feedButton.disabled = true;
+                    feedButton.classList.add('loading');
+                    feedStatus.textContent = '正在投喂...';
+                    
+                    // 发送喂食请求
+                    const response = await fetch('/feed', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    // 更新状态显示
+                    if (result.success) {
+                        feedStatus.textContent = '喂食成功！';
+                        feedStatus.style.color = '#4CAF50';
+                    } else {
+                        feedStatus.textContent = '喂食失败，请重试';
+                        feedStatus.style.color = '#F44336';
+                    }
+                    
+                    // 3秒后重置状态
+                    setTimeout(() => {
+                        feedStatus.textContent = '';
+                        feedButton.disabled = false;
+                        feedButton.classList.remove('loading');
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('喂食失败:', error);
+                    feedStatus.textContent = '喂食失败，请重试';
+                    feedStatus.style.color = '#F44336';
+                    feedButton.disabled = false;
+                    feedButton.classList.remove('loading');
+                }
+            });
+            
+            // 更新投喂量显示
+            feedAmount.textContent = '5g';
+        });
+    </script>
+</body>
+</html>
