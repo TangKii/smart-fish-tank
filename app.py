@@ -136,3 +136,6 @@ def set_water_flow():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
+
+# 为 Vercel 添加应用入口
+app = application = app
